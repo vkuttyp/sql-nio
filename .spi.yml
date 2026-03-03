@@ -1,29 +1,26 @@
 version: 1
-swift_versions:
-  - 5.10
-  - 6.0
-platforms:
-  - macos-spm
-  - ios
-  - tvos
-  - watchos
-  - linux
-  - visionos
-  - android
 builder:
   configs:
-    - platform: linux
-      swift_version: '6.0'
-      linux_packages:
-        - libsqlite3-dev
-        - pkg-config
-    - platform: android
-      swift_versions:
-        - 6.0
     - platform: macos-spm
+      swift_versions: ["6.0"]
       documentation_targets:
         - CosmoSQLCore
         - CosmoMSSQL
         - CosmoPostgres
         - CosmoMySQL
         - CosmoSQLite
+    - platform: ios
+      swift_versions: ["6.0"]
+    - platform: tvos
+      swift_versions: ["6.0"]
+    - platform: watchos
+      swift_versions: ["6.0"]
+    - platform: visionos
+      swift_versions: ["6.0"]
+    - platform: linux
+      swift_versions: ["6.0"]
+      linux_packages:
+        - libsqlite3-dev
+        - pkg-config
+    - platform: android
+      swift_versions: ["6.0"]
