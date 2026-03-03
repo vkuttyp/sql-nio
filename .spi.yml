@@ -1,6 +1,5 @@
 version: 1
 swift_versions:
-  - "5.10"
   - "6.0"
   - "6.1"
   - "6.2"
@@ -17,3 +16,6 @@ builder:
       linux_packages:
         - libsqlite3-dev
         - pkg-config
+    - platform: android
+      swift_versions:
+        - "6.0"
