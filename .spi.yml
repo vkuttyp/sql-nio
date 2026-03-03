@@ -12,6 +12,11 @@ platforms:
   - android
 builder:
   configs:
+    - platform: linux
+      swift_version: '6.0'
+      linux_packages:
+        - libsqlite3-dev
+        - pkg-config
     - platform: android
       swift_versions:
         - 6.0
