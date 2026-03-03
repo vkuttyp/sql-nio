@@ -158,15 +158,16 @@ struct TDSTokenDecoder {
 
     private mutating func decodeNbcRow(_ buf: inout ByteBuffer) throws {
         let bitmapLen = (columns.count + 7) / 8
-        guard let bitmapBytes = buf.readBytes(length: bitmapLen) else {
+        // Use a zero-copy slice instead of readBytes() to avoid heap-allocating a [UInt8].
+        guard let bitmapSlice = buf.readSlice(length: bitmapLen) else {
             throw TDSError.incomplete
         }
 
         var values: [SQLValue] = []
         for (i, col) in columns.enumerated() {
-            let byteIdx = i / 8
+            let byteIdx = bitmapSlice.readerIndex + i / 8
             let bitIdx  = i % 8
-            let isNull  = (bitmapBytes[byteIdx] >> bitIdx) & 0x01 == 1
+            let isNull  = ((bitmapSlice.getInteger(at: byteIdx, as: UInt8.self) ?? 0) >> bitIdx) & 0x01 == 1
             if isNull {
                 values.append(.null)
             } else {

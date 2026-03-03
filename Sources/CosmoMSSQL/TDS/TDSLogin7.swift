@@ -9,7 +9,7 @@ import Foundation
 struct TDSLogin7 {
     // Fixed header fields
     var tdsVersion:        UInt32 = 0x74000004   // TDS 7.4
-    var packetSize:        UInt32 = 4096
+    var packetSize:        UInt32 = 32768
     var clientProgVer:     UInt32 = 0x07000000
     var clientPID:         UInt32 = UInt32(ProcessInfo.processInfo.processIdentifier)
     var connectionID:      UInt32 = 0

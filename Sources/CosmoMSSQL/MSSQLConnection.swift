@@ -751,16 +751,22 @@ public final class MSSQLConnection: SQLDatabase, @unchecked Sendable {
     }
 
     private func sendPacket(type: TDSPacketType, payload: inout ByteBuffer) {
-        // Encode TDS packet(s) and send each packet individually.
-        // SQL Server can reject multi-packet TDS messages sent in a single write.
+        // Coalesce all TDS packets into a single ByteBuffer and flush in one syscall.
         let payloadSize = payload.readableBytes
-        let maxBody = 4096 - TDSPacketHeader.size  // 4088
+        let maxBody = 32768 - TDSPacketHeader.size  // 32760
+
+        // Pre-compute total wire size so we allocate exactly once.
+        let fullPackets = payloadSize / maxBody
+        let remainder  = payloadSize % maxBody
+        let numPackets = fullPackets + (remainder > 0 ? 1 : 0)
+        let wireSize   = payloadSize + numPackets * TDSPacketHeader.size
+        var wire = channel.allocator.buffer(capacity: wireSize)
 
         var offset = 0
         var packetID: UInt8 = 1
         while offset < payloadSize {
             let chunkLen = min(maxBody, payloadSize - offset)
-            let isLast = (offset + chunkLen) >= payloadSize
+            let isLast   = (offset + chunkLen) >= payloadSize
             let totalLen = UInt16(chunkLen + TDSPacketHeader.size)
 
             let header = TDSPacketHeader(
@@ -769,21 +775,14 @@ public final class MSSQLConnection: SQLDatabase, @unchecked Sendable {
                 length: totalLen,
                 packetID: packetID
             )
-            var pkt = channel.allocator.buffer(capacity: Int(totalLen))
-            header.encode(into: &pkt)
-            pkt.writeBytes(payload.getBytes(at: payload.readerIndex + offset, length: chunkLen)!)
+            header.encode(into: &wire)
+            wire.writeImmutableBuffer(payload.getSlice(at: payload.readerIndex + offset, length: chunkLen)!)
 
-            if isLast {
-                // Last chunk: writeAndFlush flushes all buffered writes in one TCP segment.
-                // Fire-and-forget — the server can't reply until it receives this, so reads
-                // will naturally follow the write through the event loop's FIFO ordering.
-                channel.writeAndFlush(pkt, promise: nil)
-            } else {
-                channel.write(pkt, promise: nil)
-            }
             packetID = packetID == 255 ? 1 : packetID + 1
             offset += chunkLen
         }
+        // Single writeAndFlush → one TCP segment for all packets.
+        channel.writeAndFlush(wire, promise: nil)
     }
 
     /// Receive one complete TDS message via the async stream bridge handler.
