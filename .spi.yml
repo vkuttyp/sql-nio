@@ -17,5 +17,3 @@ builder:
       linux_packages:
         - libsqlite3-dev
         - pkg-config
-    - platform: android
-      swift_version: "6.0"
