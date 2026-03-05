@@ -66,8 +66,6 @@ struct TDSRPCRequest {
         return buf
     }
 
-    // MARK: - Parameter writers
-
     /// Write an NVARCHAR(MAX) parameter using PLP encoding.
     private func writeNVarCharMaxParam(name: String, value: String, into buf: inout ByteBuffer) {
         // B_VARCHAR name: 1-byte char count + UTF-16LE
@@ -75,7 +73,6 @@ struct TDSRPCRequest {
         buf.writeInteger(UInt8(0))   // StatusFlags: normal
 
         // TypeInfo: NVARCHAR (0xE7), maxLen=0xFFFF (MAX), 5-byte collation
-        // LCID=1033 (0x409) | IgnoreCase bit (bit 20 = 0x100000) = 0x00100409 LE + sortId=0
         buf.writeInteger(UInt8(0xE7))
         buf.writeInteger(UInt16(0xFFFF), endianness: .little)
         buf.writeBytes([0x09, 0x04, 0x10, 0x00, 0x00])   // Latin1_General_CI_AS
@@ -145,14 +142,13 @@ struct TDSRPCRequest {
             buf.writeInteger(v.bitPattern, endianness: .little)
 
         case .string(let v):
-            // NVARCHAR(MAX) TypeInfo + PLP value (name & flags already written above)
+            // NVARCHAR(MAX) TypeInfo + PLP value
             buf.writeInteger(UInt8(0xE7))
             buf.writeInteger(UInt16(0xFFFF), endianness: .little)
             buf.writeBytes([0x09, 0x04, 0x10, 0x00, 0x00])   // Latin1_General_CI_AS
             writePLPString(v, into: &buf)
 
         case .decimal(let v):
-            // Send as NVARCHAR string for exact representation
             let str = (v as NSDecimalNumber).stringValue
             buf.writeInteger(UInt8(0xE7))
             buf.writeInteger(UInt16(0xFFFF), endianness: .little)
@@ -160,7 +156,6 @@ struct TDSRPCRequest {
             writePLPString(str, into: &buf)
 
         case .bytes(let v):
-            // VARBINARY(MAX) with PLP
             buf.writeInteger(UInt8(0xA5))
             buf.writeInteger(UInt16(0xFFFF), endianness: .little)
             writePLPBytes(v, into: &buf)
@@ -172,7 +167,6 @@ struct TDSRPCRequest {
             writeUUIDMixedEndian(v, into: &buf)
 
         case .date(let v):
-            // DATETIME (0x3D) fixed 8 bytes: 4-byte days + 4-byte 1/300s ticks
             buf.writeInteger(UInt8(0x6F))   // DATETIMN
             buf.writeInteger(UInt8(8))       // maxLen
             buf.writeInteger(UInt8(8))       // actual len
@@ -188,17 +182,19 @@ struct TDSRPCRequest {
     // MARK: - PLP helpers
 
     private func writePLPString(_ s: String, into buf: inout ByteBuffer) {
-        let utf16Bytes = s.data(using: .utf16LittleEndian) ?? Data()
-        let byteLen = utf16Bytes.count
+        let utf16 = Array(s.utf16)
+        let byteLen = utf16.count * 2
         if byteLen == 0 {
-            buf.writeInteger(UInt64(0), endianness: .little)  // empty (not null)
-            buf.writeInteger(UInt32(0), endianness: .little)  // terminator
+            buf.writeInteger(UInt64(0), endianness: .little)
+            buf.writeInteger(UInt32(0), endianness: .little)
             return
         }
-        buf.writeInteger(UInt64(byteLen), endianness: .little)  // total length
-        buf.writeInteger(UInt32(byteLen), endianness: .little)  // chunk length
-        buf.writeBytes(utf16Bytes)
-        buf.writeInteger(UInt32(0), endianness: .little)         // terminator
+        buf.writeInteger(UInt64(byteLen), endianness: .little)
+        buf.writeInteger(UInt32(byteLen), endianness: .little)
+        for unit in utf16 {
+            buf.writeInteger(unit, endianness: .little)
+        }
+        buf.writeInteger(UInt32(0), endianness: .little)
     }
 
     private func writePLPBytes(_ bytes: [UInt8], into buf: inout ByteBuffer) {
@@ -216,10 +212,11 @@ struct TDSRPCRequest {
     // MARK: - String helpers
 
     private func writeBVarChar(_ s: String, into buf: inout ByteBuffer) {
-        let utf16Bytes = s.data(using: .utf16LittleEndian) ?? Data()
-        let charCount = utf16Bytes.count / 2
-        buf.writeInteger(UInt8(charCount))
-        buf.writeBytes(utf16Bytes)
+        let utf16 = Array(s.utf16)
+        buf.writeInteger(UInt8(utf16.count))
+        for unit in utf16 {
+            buf.writeInteger(unit, endianness: .little)
+        }
     }
 
     // MARK: - UUID mixed-endian (SQL Server format)
