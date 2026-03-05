@@ -192,7 +192,8 @@ struct TDSRPCRequest {
         buf.writeInteger(UInt64(byteLen), endianness: .little)
         buf.writeInteger(UInt32(byteLen), endianness: .little)
         for unit in utf16 {
-            buf.writeInteger(unit, endianness: .little)
+            buf.writeInteger(UInt8(unit & 0xFF))
+            buf.writeInteger(UInt8((unit >> 8) & 0xFF))
         }
         buf.writeInteger(UInt32(0), endianness: .little)
     }
@@ -215,7 +216,8 @@ struct TDSRPCRequest {
         let utf16 = Array(s.utf16)
         buf.writeInteger(UInt8(utf16.count))
         for unit in utf16 {
-            buf.writeInteger(unit, endianness: .little)
+            buf.writeInteger(UInt8(unit & 0xFF))
+            buf.writeInteger(UInt8((unit >> 8) & 0xFF))
         }
     }
 
