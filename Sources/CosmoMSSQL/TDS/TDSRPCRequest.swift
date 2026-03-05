@@ -188,8 +188,8 @@ struct TDSRPCRequest {
     // MARK: - PLP helpers
 
     private func writePLPString(_ s: String, into buf: inout ByteBuffer) {
-        let utf16 = Array(s.utf16)
-        let byteLen = utf16.count * 2
+        let utf16Bytes = s.data(using: .utf16LittleEndian) ?? Data()
+        let byteLen = utf16Bytes.count
         if byteLen == 0 {
             buf.writeInteger(UInt64(0), endianness: .little)  // empty (not null)
             buf.writeInteger(UInt32(0), endianness: .little)  // terminator
@@ -197,7 +197,7 @@ struct TDSRPCRequest {
         }
         buf.writeInteger(UInt64(byteLen), endianness: .little)  // total length
         buf.writeInteger(UInt32(byteLen), endianness: .little)  // chunk length
-        for unit in utf16 { buf.writeInteger(unit, endianness: .little) }
+        buf.writeBytes(utf16Bytes)
         buf.writeInteger(UInt32(0), endianness: .little)         // terminator
     }
 
@@ -216,9 +216,10 @@ struct TDSRPCRequest {
     // MARK: - String helpers
 
     private func writeBVarChar(_ s: String, into buf: inout ByteBuffer) {
-        let utf16 = Array(s.utf16)
-        buf.writeInteger(UInt8(utf16.count))
-        for unit in utf16 { buf.writeInteger(unit, endianness: .little) }
+        let utf16Bytes = s.data(using: .utf16LittleEndian) ?? Data()
+        let charCount = utf16Bytes.count / 2
+        buf.writeInteger(UInt8(charCount))
+        buf.writeBytes(utf16Bytes)
     }
 
     // MARK: - UUID mixed-endian (SQL Server format)
