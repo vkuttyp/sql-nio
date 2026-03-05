@@ -17,8 +17,12 @@ struct TDSTokenDecoder {
     // All completed result sets (flushed on COLMETADATA/DONE)
     private(set) var resultSets: [[SQLRow]] = []
 
-    // First result set — convenience alias used by simple query callers
-    var rows: [SQLRow] { resultSets.first ?? [] }
+    // First result set — convenience alias used by simple query callers.
+    // Includes unflushed rows if no result sets were formally closed yet.
+    var rows: [SQLRow] {
+        if let first = resultSets.first { return first }
+        return currentRows
+    }
 
     // Rows-affected count from the DONE token (DONE_COUNT bit)
     private(set) var rowsAffected: Int = 0
