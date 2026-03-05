@@ -186,10 +186,11 @@ struct TDSTokenDecoder {
             let _: UInt16 = buf.readInteger(endianness: .little),   // curCmd
             let count: UInt64 = buf.readInteger(endianness: .little) // rowCount (8 bytes in TDS 7.2+)
         else { throw TDSError.incomplete }
-        // Flush current rows into resultSets on any DONE token
-        if !currentRows.isEmpty {
+        // Flush current rows into resultSets on any DONE token if we have columns (i.e. a result set was started)
+        if !columns.isEmpty {
             resultSets.append(currentRows)
             currentRows = []
+            columns = [] // Reset columns for next result set
         }
         // Only trust the rowcount when the DONE_COUNT bit (0x10) is set
         if status & 0x10 != 0 {
