@@ -25,9 +25,27 @@ public extension SQLValue {
     var isNull: Bool { if case .null = self { return true }; return false }
 
     func asBool()    -> Bool?    { guard case .bool(let v)    = self else { return nil }; return v }
-    func asInt()     -> Int?     { guard case .int(let v)      = self else { return nil }; return v }
+    func asInt() -> Int? {
+        switch self {
+        case .int(let v):   return v
+        case .int8(let v):  return Int(v)
+        case .int16(let v): return Int(v)
+        case .int32(let v): return Int(v)
+        case .int64(let v): return Int(exactly: v)
+        default:            return nil
+        }
+    }
     func asInt32()   -> Int32?   { guard case .int32(let v)    = self else { return nil }; return v }
-    func asInt64()   -> Int64?   { guard case .int64(let v)    = self else { return nil }; return v }
+    func asInt64() -> Int64? {
+        switch self {
+        case .int64(let v): return v
+        case .int32(let v): return Int64(v)
+        case .int16(let v): return Int64(v)
+        case .int8(let v):  return Int64(v)
+        case .int(let v):   return Int64(v)
+        default:            return nil
+        }
+    }
     func asFloat()   -> Float?   { guard case .float(let v)    = self else { return nil }; return v }
     func asDouble()  -> Double?  { guard case .double(let v)   = self else { return nil }; return v }
     func asDecimal() -> Decimal? { guard case .decimal(let v)  = self else { return nil }; return v }

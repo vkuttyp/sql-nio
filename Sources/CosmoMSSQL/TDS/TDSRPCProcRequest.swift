@@ -176,7 +176,12 @@ struct TDSRPCProcRequest {
     }
 
     private func writeBVarChar(_ s: String, into buf: inout ByteBuffer) {
-        let utf16 = Array(s.utf16)
+        var name = s
+        if !name.isEmpty && !name.hasPrefix("@") {
+            name = "@" + name
+        }
+        let utf16 = Array(name.utf16)
+        // RPCParamName: 1-byte CHARACTER count prefix
         buf.writeInteger(UInt8(utf16.count))
         for unit in utf16 { buf.writeInteger(unit, endianness: .little) }
     }
